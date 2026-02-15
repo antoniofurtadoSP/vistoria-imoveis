@@ -842,63 +842,69 @@ def main():
                 'areas_servico': int(areas_servico)
             }
             
-            for tipo, quantidade in tipos_comodos.items():
-                if quantidade > 0:
-                    tipo_label = tipo.replace('_', ' ').title()
-                    
-                    with st.expander(f"📋 {tipo_label} ({quantidade})", expanded=False):
-                        comodos_lista = []
+            # Verificar se há pelo menos um cômodo informado
+            total_comodos = sum(tipos_comodos.values())
+            
+            if total_comodos == 0:
+                st.info("💡 **Dica:** Informe as quantidades de cômodos na seção 'Características do Imóvel' acima para que eles apareçam aqui para detalhamento.")
+            else:
+                for tipo, quantidade in tipos_comodos.items():
+                    if quantidade > 0:
+                        tipo_label = tipo.replace('_', ' ').title()
                         
-                        for i in range(quantidade):
-                            st.markdown(f"**{tipo_label[:-1] if tipo_label.endswith('s') else tipo_label} {i+1}**")
+                        with st.expander(f"📋 {tipo_label} ({quantidade})", expanded=False):
+                            comodos_lista = []
                             
-                            col_estado, col_obs = st.columns([1, 2])
-                            
-                            with col_estado:
-                                estado_comodo = st.selectbox(
-                                    "Estado",
-                                    ["Excelente", "Bom", "Regular", "Ruim", "Péssimo"],
-                                    key=f"estado_{tipo}_{i}",
-                                    help="Condição geral do cômodo"
+                            for i in range(quantidade):
+                                st.markdown(f"**{tipo_label[:-1] if tipo_label.endswith('s') else tipo_label} {i+1}**")
+                                
+                                col_estado, col_obs = st.columns([1, 2])
+                                
+                                with col_estado:
+                                    estado_comodo = st.selectbox(
+                                        "Estado",
+                                        ["Excelente", "Bom", "Regular", "Ruim", "Péssimo"],
+                                        key=f"estado_{tipo}_{i}",
+                                        help="Condição geral do cômodo"
+                                    )
+                                
+                                with col_obs:
+                                    obs_comodo = st.text_area(
+                                        "Observações",
+                                        key=f"obs_{tipo}_{i}",
+                                        height=100,
+                                        placeholder="Descreva detalhes importantes: danos, manchas, condição de pisos, paredes, etc."
+                                    )
+                                
+                                # Upload de fotos
+                                fotos = st.file_uploader(
+                                    f"📷 Fotos do {tipo_label[:-1] if tipo_label.endswith('s') else tipo_label} {i+1}",
+                                    type=['png', 'jpg', 'jpeg'],
+                                    accept_multiple_files=True,
+                                    key=f"fotos_{tipo}_{i}",
+                                    help="Tire fotos de diferentes ângulos do cômodo"
                                 )
                             
-                            with col_obs:
-                                obs_comodo = st.text_area(
-                                    "Observações",
-                                    key=f"obs_{tipo}_{i}",
-                                    height=100,
-                                    placeholder="Descreva detalhes importantes: danos, manchas, condição de pisos, paredes, etc."
-                                )
+                                # Processar fotos para base64
+                                fotos_base64 = []
+                                if fotos:
+                                    for foto in fotos:
+                                        img_bytes = foto.read()
+                                        img_base64 = base64.b64encode(img_bytes).decode()
+                                        fotos_base64.append(f"data:image/{foto.type.split('/')[-1]};base64,{img_base64}")
+                                        
+                                        # Preview das fotos
+                                        st.image(img_bytes, caption=foto.name, width=200)
+                                
+                                comodos_lista.append({
+                                    'estado': estado_comodo,
+                                    'observacoes': obs_comodo,
+                                    'fotos': fotos_base64
+                                })
+                                
+                                st.markdown("---")
                             
-                            # Upload de fotos
-                            fotos = st.file_uploader(
-                                f"📷 Fotos do {tipo_label[:-1] if tipo_label.endswith('s') else tipo_label} {i+1}",
-                                type=['png', 'jpg', 'jpeg'],
-                                accept_multiple_files=True,
-                                key=f"fotos_{tipo}_{i}",
-                                help="Tire fotos de diferentes ângulos do cômodo"
-                            )
-                            
-                            # Processar fotos para base64
-                            fotos_base64 = []
-                            if fotos:
-                                for foto in fotos:
-                                    img_bytes = foto.read()
-                                    img_base64 = base64.b64encode(img_bytes).decode()
-                                    fotos_base64.append(f"data:image/{foto.type.split('/')[-1]};base64,{img_base64}")
-                                    
-                                    # Preview das fotos
-                                    st.image(img_bytes, caption=foto.name, width=200)
-                            
-                            comodos_lista.append({
-                                'estado': estado_comodo,
-                                'observacoes': obs_comodo,
-                                'fotos': fotos_base64
-                            })
-                            
-                            st.markdown("---")
-                        
-                        dados_comodos[tipo] = comodos_lista
+                            dados_comodos[tipo] = comodos_lista
             
             st.markdown('</div>', unsafe_allow_html=True)
 
