@@ -832,223 +832,73 @@ def main():
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
             st.subheader("🔍 Detalhamento por Cômodo")
             
-            # Gerar lista dinâmica baseada nas quantidades informadas
-            comodos_lista = []
-            
-            # Adicionar quartos
-            for i in range(1, int(quartos) + 1):
-                comodos_lista.append(f"Quarto {i}")
-            
-            # Adicionar banheiros
-            for i in range(1, int(banheiros) + 1):
-                comodos_lista.append(f"Banheiro {i}")
-            
-            # Adicionar salas
-            for i in range(1, int(salas) + 1):
-                comodos_lista.append(f"Sala {i}")
-            
-            # Adicionar cozinhas
-            for i in range(1, int(cozinhas) + 1):
-                comodos_lista.append(f"Cozinha {i}")
-            
-            # Adicionar áreas de serviço
-            for i in range(1, int(areas_servico) + 1):
-                comodos_lista.append(f"Área de Serviço {i}")
-            
-            # Adicionar vagas de garagem
-            for i in range(1, int(vagas_garagem) + 1):
-                comodos_lista.append(f"Garagem/Vaga {i}")
-            
-            # Adicionar cômodos extras opcionais
-            comodos_extras = ["Varanda", "Quintal", "Lavabo", "Despensa", "Closet", "Escritório", "Outros"]
-            
-            st.info("💡 **Dica:** Os cômodos abaixo foram gerados baseado nas quantidades que você informou. Role para baixo para adicionar cômodos extras opcionais.")
-            
+            # Estrutura para armazenar dados dos cômodos
             dados_comodos = {}
-
-            for nome_comodo in comodos_lista:
-                with st.expander(f"🚪 {nome_comodo}", expanded=False):
-                    col_a, col_b = st.columns(2)
-                    
-                    with col_a:
-                        paredes = st.selectbox(
-                            "Paredes",
-                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
-                            key=f"{nome_comodo}_paredes"
-                        )
-                        teto = st.selectbox(
-                            "Teto",
-                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
-                            key=f"{nome_comodo}_teto"
-                        )
-                        piso = st.selectbox(
-                            "Piso",
-                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
-                            key=f"{nome_comodo}_piso"
-                        )
-                    
-                    with col_b:
-                        portas = st.selectbox(
-                            "Portas",
-                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
-                            key=f"{nome_comodo}_portas"
-                        )
-                        janelas = st.selectbox(
-                            "Janelas",
-                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
-                            key=f"{nome_comodo}_janelas"
-                        )
-                        moveis = st.selectbox(
-                            "Móveis/Armários",
-                            ["Não se aplica", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
-                            key=f"{nome_comodo}_moveis"
-                        )
-
-                    obs_comodo = st.text_area(
-                        "Observações",
-                        placeholder="Descreva detalhes, danos, reparos necessários, etc.",
-                        key=f"{nome_comodo}_obs",
-                        height=100
-                    )
-
-                    fotos_comodo_files = st.file_uploader(
-                        "📸 Adicionar Fotos",
-                        accept_multiple_files=True,
-                        type=["jpg", "jpeg", "png"],
-                        key=f"{nome_comodo}_fotos",
-                        help="Você pode tirar fotos com a câmera do celular"
-                    )
-
-                    fotos_comodo_b64 = []
-                    if fotos_comodo_files:
-                        st.caption(f"✅ {len(fotos_comodo_files)} foto(s) adicionada(s)")
-                        for f in fotos_comodo_files:
-                            b64 = salvar_foto(f)
-                            if b64:
-                                fotos_comodo_b64.append(b64)
-
-                    # Só salvar dados se pelo menos um campo foi preenchido
-                    if any([
-                        paredes != "Não informado",
-                        teto != "Não informado",
-                        piso != "Não informado",
-                        portas != "Não informado",
-                        janelas != "Não informado",
-                        moveis != "Não se aplica",
-                        obs_comodo,
-                        fotos_comodo_b64
-                    ]):
-                        dados_comodos[nome_comodo] = {
-                            "estados": {
-                                "paredes": paredes,
-                                "teto": teto,
-                                "piso": piso,
-                                "portas": portas,
-                                "janelas": janelas,
-                                "moveis": moveis,
-                            },
-                            "observacao": obs_comodo,
-                            "fotos": fotos_comodo_b64,
-                        }
+            tipos_comodos = {
+                'quartos': int(quartos),
+                'banheiros': int(banheiros),
+                'salas': int(salas),
+                'cozinhas': int(cozinhas),
+                'areas_servico': int(areas_servico)
+            }
             
-            # Seção: Cômodos Extras (Opcionais)
-            st.markdown("---")
-            st.markdown("### 🏠 Cômodos Extras (Opcionais)")
-            st.caption("Adicione outros cômodos que não foram incluídos nas quantidades acima")
-            
-            col_extras1, col_extras2 = st.columns(2)
-            with col_extras1:
-                extras_selecionados = st.multiselect(
-                    "Selecione cômodos extras para vistoriar:",
-                    comodos_extras,
-                    help="Marque os cômodos adicionais que existem no imóvel"
-                )
-            
-            # Processar cômodos extras selecionados
-            for nome_comodo in extras_selecionados:
-                with st.expander(f"🚪 {nome_comodo}", expanded=False):
-                    col_a, col_b = st.columns(2)
+            for tipo, quantidade in tipos_comodos.items():
+                if quantidade > 0:
+                    tipo_label = tipo.replace('_', ' ').title()
                     
-                    with col_a:
-                        paredes = st.selectbox(
-                            "Paredes",
-                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
-                            key=f"{nome_comodo}_paredes"
-                        )
-                        teto = st.selectbox(
-                            "Teto",
-                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
-                            key=f"{nome_comodo}_teto"
-                        )
-                        piso = st.selectbox(
-                            "Piso",
-                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
-                            key=f"{nome_comodo}_piso"
-                        )
-                    
-                    with col_b:
-                        portas = st.selectbox(
-                            "Portas",
-                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
-                            key=f"{nome_comodo}_portas"
-                        )
-                        janelas = st.selectbox(
-                            "Janelas",
-                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
-                            key=f"{nome_comodo}_janelas"
-                        )
-                        moveis = st.selectbox(
-                            "Móveis/Armários",
-                            ["Não se aplica", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
-                            key=f"{nome_comodo}_moveis"
-                        )
-
-                    obs_comodo = st.text_area(
-                        "Observações",
-                        placeholder="Descreva detalhes, danos, reparos necessários, etc.",
-                        key=f"{nome_comodo}_obs",
-                        height=100
-                    )
-
-                    fotos_comodo_files = st.file_uploader(
-                        "📸 Adicionar Fotos",
-                        accept_multiple_files=True,
-                        type=["jpg", "jpeg", "png"],
-                        key=f"{nome_comodo}_fotos",
-                        help="Você pode tirar fotos com a câmera do celular"
-                    )
-
-                    fotos_comodo_b64 = []
-                    if fotos_comodo_files:
-                        st.caption(f"✅ {len(fotos_comodo_files)} foto(s) adicionada(s)")
-                        for f in fotos_comodo_files:
-                            b64 = salvar_foto(f)
-                            if b64:
-                                fotos_comodo_b64.append(b64)
-
-                    # Só salvar dados se pelo menos um campo foi preenchido
-                    if any([
-                        paredes != "Não informado",
-                        teto != "Não informado",
-                        piso != "Não informado",
-                        portas != "Não informado",
-                        janelas != "Não informado",
-                        moveis != "Não se aplica",
-                        obs_comodo,
-                        fotos_comodo_b64
-                    ]):
-                        dados_comodos[nome_comodo] = {
-                            "estados": {
-                                "paredes": paredes,
-                                "teto": teto,
-                                "piso": piso,
-                                "portas": portas,
-                                "janelas": janelas,
-                                "moveis": moveis,
-                            },
-                            "observacao": obs_comodo,
-                            "fotos": fotos_comodo_b64,
-                        }
+                    with st.expander(f"📋 {tipo_label} ({quantidade})", expanded=False):
+                        comodos_lista = []
+                        
+                        for i in range(quantidade):
+                            st.markdown(f"**{tipo_label[:-1] if tipo_label.endswith('s') else tipo_label} {i+1}**")
+                            
+                            col_estado, col_obs = st.columns([1, 2])
+                            
+                            with col_estado:
+                                estado_comodo = st.selectbox(
+                                    "Estado",
+                                    ["Excelente", "Bom", "Regular", "Ruim", "Péssimo"],
+                                    key=f"estado_{tipo}_{i}",
+                                    help="Condição geral do cômodo"
+                                )
+                            
+                            with col_obs:
+                                obs_comodo = st.text_area(
+                                    "Observações",
+                                    key=f"obs_{tipo}_{i}",
+                                    height=100,
+                                    placeholder="Descreva detalhes importantes: danos, manchas, condição de pisos, paredes, etc."
+                                )
+                            
+                            # Upload de fotos
+                            fotos = st.file_uploader(
+                                f"📷 Fotos do {tipo_label[:-1] if tipo_label.endswith('s') else tipo_label} {i+1}",
+                                type=['png', 'jpg', 'jpeg'],
+                                accept_multiple_files=True,
+                                key=f"fotos_{tipo}_{i}",
+                                help="Tire fotos de diferentes ângulos do cômodo"
+                            )
+                            
+                            # Processar fotos para base64
+                            fotos_base64 = []
+                            if fotos:
+                                for foto in fotos:
+                                    img_bytes = foto.read()
+                                    img_base64 = base64.b64encode(img_bytes).decode()
+                                    fotos_base64.append(f"data:image/{foto.type.split('/')[-1]};base64,{img_base64}")
+                                    
+                                    # Preview das fotos
+                                    st.image(img_bytes, caption=foto.name, width=200)
+                            
+                            comodos_lista.append({
+                                'estado': estado_comodo,
+                                'observacoes': obs_comodo,
+                                'fotos': fotos_base64
+                            })
+                            
+                            st.markdown("---")
+                        
+                        dados_comodos[tipo] = comodos_lista
             
             st.markdown('</div>', unsafe_allow_html=True)
 
