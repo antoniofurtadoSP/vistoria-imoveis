@@ -711,27 +711,23 @@ def main():
     # Inicializar banco de dados
     init_db()
     
-    # Header com logo usando Streamlit
+    # Logo embutida em base64
+    logo_base64 = "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"
+    
+    # Header com logo
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        try:
-            st.image("https://raw.githubusercontent.com/antoniofurtadoSP/vistoria-imoveis/main/logo01.png", 
-                     use_container_width=True)
-        except:
-            pass
-        
-        st.markdown("""
-            <div style="text-align: center;">
-                <div style="font-size: 1.8rem; font-weight: 700; color: #1a2b4a; margin-top: 0.5rem; margin-bottom: 0.5rem;">
+        st.markdown(f"""
+            <div style="text-align: center; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 2rem;">
+                <img src="data:image/png;base64,{logo_base64}" style="max-width: 100%; height: auto; margin-bottom: 1rem;">
+                <div style="font-size: 1.8rem; font-weight: 700; color: #1a2b4a; margin-top: 1rem;">
                     Laudo de Vistoria
                 </div>
-                <div style="font-size: 1rem; color: #64748b;">
+                <div style="font-size: 1rem; color: #64748b; margin-top: 0.5rem;">
                     Sistema Profissional de Gestão de Vistorias Imobiliárias
                 </div>
             </div>
         """, unsafe_allow_html=True)
-    
-    st.markdown("---")
 
     # Sidebar com informações
     with st.sidebar:
