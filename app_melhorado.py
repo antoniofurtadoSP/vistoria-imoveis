@@ -711,16 +711,27 @@ def main():
     # Inicializar banco de dados
     init_db()
     
-    # Header customizado com logo do GitHub
-    # URL da logo no repositório GitHub
-    logo_url = "https://raw.githubusercontent.com/antoniofurtadoSP/vistoria-imoveis/main/logo01.png"
+    # Header com logo usando Streamlit
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        try:
+            st.image("https://raw.githubusercontent.com/antoniofurtadoSP/vistoria-imoveis/main/logo01.png", 
+                     use_container_width=True)
+        except:
+            pass
+        
+        st.markdown("""
+            <div style="text-align: center;">
+                <div style="font-size: 1.8rem; font-weight: 700; color: #1a2b4a; margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                    Laudo de Vistoria
+                </div>
+                <div style="font-size: 1rem; color: #64748b;">
+                    Sistema Profissional de Gestão de Vistorias Imobiliárias
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
     
-    st.markdown(f"""
-        <div class="header-container">
-            <img src="{logo_url}" style="max-width: 400px; margin-bottom: 1rem;" onerror="this.style.display='none'">
-            <div class="app-subtitle">Sistema Profissional de Gestão de Vistorias Imobiliárias</div>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown("---")
 
     # Sidebar com informações
     with st.sidebar:
@@ -1132,14 +1143,4 @@ def main():
         ### 🔐 Sincronização de Dados
         O arquivo **vistoria.db** contém todos os dados. Para sincronizar:
         - **Opção 1:** Use um serviço de cloud (Dropbox, Google Drive)
-        - **Opção 2:** Faça backup regular do arquivo
-        - **Opção 3:** Configure um servidor compartilhado
-        
-        ### 📞 Suporte
-        Em caso de dúvidas ou problemas, entre em contato com o suporte técnico.
-        """)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-
-if __name__ == "__main__":
-    main()
+        - **Opção 2:** Faça backup regular d
