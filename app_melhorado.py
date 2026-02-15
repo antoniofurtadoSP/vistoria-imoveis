@@ -1143,4 +1143,14 @@ def main():
         ### 🔐 Sincronização de Dados
         O arquivo **vistoria.db** contém todos os dados. Para sincronizar:
         - **Opção 1:** Use um serviço de cloud (Dropbox, Google Drive)
-        - **Opção 2:** Faça backup regular d
+        - **Opção 2:** Faça backup regular do arquivo
+        - **Opção 3:** Configure um servidor compartilhado
+        
+        ### 📞 Suporte
+        Em caso de dúvidas ou problemas, entre em contato com o suporte técnico.
+        """)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+if __name__ == "__main__":
+    main()
