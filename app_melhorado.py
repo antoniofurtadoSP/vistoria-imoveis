@@ -249,546 +249,814 @@ st.markdown("""
             padding: 1rem !important;
         }
         
-        .stTabs [data-baseweb="tab"] {
-            padding: 0 12px;
-            font-size: 0.9rem;
+        .section-card {
+            padding: 1rem;
         }
     }
     
-    /* Animações suaves */
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
+    /* Badge de status */
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
     }
     
-    .stMarkdown, .stDataFrame {
-        animation: fadeIn 0.5s ease-in;
+    .status-concluida {
+        background-color: #d1fae5;
+        color: #065f46;
+    }
+    
+    .status-pendente {
+        background-color: #fef3c7;
+        color: #92400e;
+    }
+    
+    .status-problemas {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+    
+    /* Preview de fotos */
+    .photo-preview {
+        display: inline-block;
+        width: 100px;
+        height: 100px;
+        margin: 0.5rem;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+    }
+    
+    .photo-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ================= BANCO DE DADOS =================
 
-def inicializar_bd():
-    """Cria a tabela de vistorias se não existir"""
+def init_db():
+    """Inicializa o banco de dados com as tabelas necessárias"""
     conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+    c = conn.cursor()
     
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS vistorias (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        endereco TEXT NOT NULL,
-        proprietario TEXT,
-        inquilino TEXT,
-        corretor_responsavel TEXT,
-        tipo_vistoria TEXT,
-        data_vistoria DATE,
-        hora_vistoria TIME,
-        quartos INTEGER,
-        banheiros INTEGER,
-        salas INTEGER,
-        cozinhas INTEGER,
-        areas_servico INTEGER,
-        vagas_garagem INTEGER,
-        dados_comodos TEXT,
-        observacoes_gerais TEXT,
-        status TEXT,
-        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-    ''')
-    
-    conn.commit()
-    conn.close()
-
-def salvar_vistoria(dados):
-    """Salva uma nova vistoria no banco"""
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-    INSERT INTO vistorias (
-        endereco, proprietario, inquilino, corretor_responsavel,
-        tipo_vistoria, data_vistoria, hora_vistoria,
-        quartos, banheiros, salas, cozinhas, areas_servico, vagas_garagem,
-        dados_comodos, observacoes_gerais, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        dados['endereco'],
-        dados['proprietario'],
-        dados['inquilino'],
-        dados['corretor_responsavel'],
-        dados['tipo_vistoria'],
-        dados['data_vistoria'],
-        dados['hora_vistoria'],
-        dados['quartos'],
-        dados['banheiros'],
-        dados['salas'],
-        dados['cozinhas'],
-        dados['areas_servico'],
-        dados['vagas_garagem'],
-        dados['dados_comodos'],
-        dados['observacoes_gerais'],
-        dados['status']
-    ))
+    # Tabela principal de vistorias
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS vistorias (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            endereco TEXT NOT NULL,
+            proprietario TEXT,
+            inquilino TEXT,
+            corretor_responsavel TEXT,
+            tipo_vistoria TEXT,
+            data_vistoria TEXT,
+            hora_vistoria TEXT,
+            quartos INTEGER DEFAULT 0,
+            banheiros INTEGER DEFAULT 0,
+            salas INTEGER DEFAULT 0,
+            cozinhas INTEGER DEFAULT 0,
+            areas_servico INTEGER DEFAULT 0,
+            vagas_garagem INTEGER DEFAULT 0,
+            dados_comodos TEXT,
+            observacoes_gerais TEXT,
+            status TEXT,
+            data_criacao TEXT DEFAULT CURRENT_TIMESTAMP,
+            data_modificacao TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     
     conn.commit()
     conn.close()
 
 def get_vistorias(filtro_status=None, filtro_tipo=None, busca=None):
-    """Recupera vistorias com filtros opcionais"""
+    """Retorna lista de vistorias com filtros opcionais"""
     conn = sqlite3.connect(DB_NAME)
     
-    query = "SELECT id, endereco, proprietario, inquilino, tipo_vistoria, data_vistoria, status FROM vistorias WHERE 1=1"
+    query = """
+        SELECT
+            id,
+            endereco,
+            proprietario,
+            inquilino,
+            tipo_vistoria,
+            data_vistoria,
+            status,
+            data_criacao
+        FROM vistorias
+        WHERE 1=1
+    """
     params = []
     
-    if filtro_status:
+    if filtro_status and filtro_status != "Todos":
         query += " AND status = ?"
         params.append(filtro_status)
     
-    if filtro_tipo:
+    if filtro_tipo and filtro_tipo != "Todos":
         query += " AND tipo_vistoria = ?"
         params.append(filtro_tipo)
     
     if busca:
         query += " AND (endereco LIKE ? OR proprietario LIKE ? OR inquilino LIKE ?)"
-        busca_param = f"%{busca}%"
-        params.extend([busca_param, busca_param, busca_param])
+        params.extend([f"%{busca}%", f"%{busca}%", f"%{busca}%"])
     
-    query += " ORDER BY criado_em DESC"
+    query += " ORDER BY id DESC"
     
     df = pd.read_sql_query(query, conn, params=params)
     conn.close()
-    
     return df
 
-def get_vistoria_by_id(vistoria_id):
-    """Recupera uma vistoria específica pelo ID"""
+def salvar_vistoria(dados, vistoria_id=None):
+    """Salva ou atualiza uma vistoria"""
     conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+    c = conn.cursor()
     
-    cursor.execute("SELECT * FROM vistorias WHERE id = ?", (vistoria_id,))
-    row = cursor.fetchone()
-    
-    conn.close()
-    
-    if row:
-        columns = [description[0] for description in cursor.description]
-        return dict(zip(columns, row))
-    return None
-
-def deletar_vistoria(vistoria_id):
-    """Deleta uma vistoria pelo ID"""
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    
-    cursor.execute("DELETE FROM vistorias WHERE id = ?", (vistoria_id,))
+    if vistoria_id:
+        # Atualizar vistoria existente
+        c.execute("""
+            UPDATE vistorias SET
+                endereco = ?,
+                proprietario = ?,
+                inquilino = ?,
+                corretor_responsavel = ?,
+                tipo_vistoria = ?,
+                data_vistoria = ?,
+                hora_vistoria = ?,
+                quartos = ?,
+                banheiros = ?,
+                salas = ?,
+                cozinhas = ?,
+                areas_servico = ?,
+                vagas_garagem = ?,
+                dados_comodos = ?,
+                observacoes_gerais = ?,
+                status = ?,
+                data_modificacao = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (
+            dados['endereco'],
+            dados['proprietario'],
+            dados['inquilino'],
+            dados['corretor_responsavel'],
+            dados['tipo_vistoria'],
+            dados['data_vistoria'],
+            dados['hora_vistoria'],
+            dados['quartos'],
+            dados['banheiros'],
+            dados['salas'],
+            dados['cozinhas'],
+            dados['areas_servico'],
+            dados['vagas_garagem'],
+            dados['dados_comodos'],
+            dados['observacoes_gerais'],
+            dados['status'],
+            vistoria_id
+        ))
+    else:
+        # Inserir nova vistoria
+        c.execute("""
+            INSERT INTO vistorias (
+                endereco, proprietario, inquilino, corretor_responsavel,
+                tipo_vistoria, data_vistoria, hora_vistoria,
+                quartos, banheiros, salas, cozinhas, areas_servico, vagas_garagem,
+                dados_comodos, observacoes_gerais, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            dados['endereco'],
+            dados['proprietario'],
+            dados['inquilino'],
+            dados['corretor_responsavel'],
+            dados['tipo_vistoria'],
+            dados['data_vistoria'],
+            dados['hora_vistoria'],
+            dados['quartos'],
+            dados['banheiros'],
+            dados['salas'],
+            dados['cozinhas'],
+            dados['areas_servico'],
+            dados['vagas_garagem'],
+            dados['dados_comodos'],
+            dados['observacoes_gerais'],
+            dados['status']
+        ))
     
     conn.commit()
     conn.close()
 
-# ================= VALIDAÇÃO =================
+def get_vistoria_by_id(vistoria_id):
+    """Retorna uma vistoria específica pelo ID"""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT * FROM vistorias WHERE id = ?", (vistoria_id,))
+    row = c.fetchone()
+    conn.close()
+    return row
+
+def deletar_vistoria(vistoria_id):
+    """Deleta uma vistoria"""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("DELETE FROM vistorias WHERE id = ?", (vistoria_id,))
+    conn.commit()
+    conn.close()
+
+# ================= UTILITÁRIOS =================
+
+def salvar_foto(uploaded_file):
+    """Converte foto para base64"""
+    if uploaded_file:
+        try:
+            img = PilImage.open(uploaded_file)
+            
+            # Redimensionar para otimizar tamanho
+            max_size = (1200, 1200)
+            img.thumbnail(max_size, PilImage.Resampling.LANCZOS)
+            
+            # Converter para RGB se necessário
+            if img.mode != "RGB":
+                img = img.convert("RGB")
+            
+            # Comprimir e salvar
+            img_byte_arr = io.BytesIO()
+            img.save(img_byte_arr, format="JPEG", quality=85, optimize=True)
+            img_byte_arr = img_byte_arr.getvalue()
+            
+            return base64.b64encode(img_byte_arr).decode()
+        except Exception as e:
+            st.error(f"Erro ao processar foto: {str(e)}")
+            return None
+    return None
 
 def validar_dados(dados):
     """Valida os dados antes de salvar"""
     erros = []
     
-    if not dados.get('endereco'):
-        erros.append("Endereço é obrigatório")
+    if not dados.get('endereco') or len(dados['endereco']) < 10:
+        erros.append("Endereço completo é obrigatório")
+    
+    if not dados.get('corretor_responsavel'):
+        erros.append("Nome do corretor responsável é obrigatório")
     
     if not dados.get('tipo_vistoria'):
         erros.append("Tipo de vistoria é obrigatório")
     
-    if not dados.get('data_vistoria'):
-        erros.append("Data da vistoria é obrigatória")
-    
     return erros
 
-# ================= GERAÇÃO DE PDF =================
+def gerar_pdf_profissional(row):
+    """Gera PDF profissional e bem formatado"""
+    (
+        _id, endereco, proprietario, inquilino, corretor_responsavel,
+        tipo_vistoria, data_vistoria, hora_vistoria,
+        quartos, banheiros, salas, cozinhas, areas_servico, vagas_garagem,
+        dados_comodos_texto, observacoes_gerais, status, *_
+    ) = row
 
-def gerar_pdf_profissional(vistoria):
-    """Gera um PDF profissional da vistoria"""
+    try:
+        dados_comodos = json.loads(dados_comodos_texto)
+    except Exception:
+        dados_comodos = {}
+
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    story = []
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
     styles = getSampleStyleSheet()
-    
-    # Estilo customizado para título
+    story = []
+
+    # Estilos customizados
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
         fontSize=24,
-        textColor=colors.HexColor('#1a2b4a'),
+        textColor=colors.HexColor('#2563eb'),
         spaceAfter=30,
         alignment=TA_CENTER,
         fontName='Helvetica-Bold'
     )
     
-    # Estilo para subtítulo
-    subtitle_style = ParagraphStyle(
-        'Subtitle',
-        parent=styles['Normal'],
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
         fontSize=14,
-        textColor=colors.HexColor('#C9A961'),
-        spaceAfter=20,
-        alignment=TA_CENTER,
+        textColor=colors.HexColor('#1e293b'),
+        spaceAfter=12,
+        spaceBefore=12,
         fontName='Helvetica-Bold'
     )
     
-    # Estilo para seções
-    section_style = ParagraphStyle(
-        'Section',
-        parent=styles['Heading2'],
-        fontSize=16,
-        textColor=colors.HexColor('#1a2b4a'),
-        spaceAfter=12,
-        fontName='Helvetica-Bold',
-        borderWidth=0,
-        borderColor=colors.HexColor('#C9A961'),
-        borderPadding=5
-    )
-    
-    # Título principal
-    story.append(Paragraph("LAUDO DE VISTORIA", title_style))
-    story.append(Paragraph(f"ID: {vistoria['id']}", subtitle_style))
+    # Título
+    story.append(Paragraph("LAUDO DE VISTORIA DE IMÓVEL", title_style))
     story.append(Spacer(1, 20))
-    
-    # Informações básicas
-    story.append(Paragraph("Informações Gerais", section_style))
-    
+
+    # Informações principais em tabela
     info_data = [
-        ["Endereço:", vistoria['endereco']],
-        ["Proprietário:", vistoria['proprietario'] or "-"],
-        ["Inquilino:", vistoria['inquilino'] or "-"],
-        ["Corretor:", vistoria['corretor_responsavel'] or "-"],
-        ["Tipo:", vistoria['tipo_vistoria']],
-        ["Data:", vistoria['data_vistoria']],
-        ["Horário:", vistoria['hora_vistoria'] or "-"],
-        ["Status:", vistoria['status']],
+        ['Endereço:', endereco],
+        ['Proprietário:', proprietario or 'Não informado'],
+        ['Inquilino:', inquilino or 'Não informado'],
+        ['Corretor Responsável:', corretor_responsavel],
+        ['Tipo de Vistoria:', tipo_vistoria],
+        ['Data:', f"{data_vistoria}  às {hora_vistoria}"],
+        ['Status:', status]
     ]
     
-    info_table = Table(info_data, colWidths=[120, 370])
+    info_table = Table(info_data, colWidths=[2*inch, 4.5*inch])
     info_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f8fafc')),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1a2b4a')),
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f1f5f9')),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#1e293b')),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
-        ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
         ('PADDING', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
     ]))
     
     story.append(info_table)
     story.append(Spacer(1, 20))
-    
-    # Características do imóvel
-    story.append(Paragraph("Características do Imóvel", section_style))
-    
-    caract_data = [
-        ["Quartos:", str(vistoria['quartos'])],
-        ["Banheiros:", str(vistoria['banheiros'])],
-        ["Salas:", str(vistoria['salas'])],
-        ["Cozinhas:", str(vistoria['cozinhas'])],
-        ["Áreas de Serviço:", str(vistoria['areas_servico'])],
-        ["Vagas de Garagem:", str(vistoria['vagas_garagem'])],
+
+    # Resumo de cômodos
+    story.append(Paragraph("RESUMO DO IMÓVEL", heading_style))
+    comodos_data = [
+        ['Quartos', 'Banheiros', 'Salas', 'Cozinhas', 'Áreas de Serviço', 'Vagas Garagem'],
+        [str(quartos), str(banheiros), str(salas), str(cozinhas), str(areas_servico), str(vagas_garagem)]
     ]
     
-    caract_table = Table(caract_data, colWidths=[180, 310])
-    caract_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f8fafc')),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1a2b4a')),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+    comodos_table = Table(comodos_data, colWidths=[1.08*inch]*6)
+    comodos_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2563eb')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
-        ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
         ('PADDING', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
     ]))
     
-    story.append(caract_table)
+    story.append(comodos_table)
+    story.append(Spacer(1, 20))
+
+    # Detalhamento por cômodo
+    story.append(Paragraph("DETALHAMENTO POR CÔMODO", heading_style))
+    story.append(Spacer(1, 10))
+
+    for comodo_nome, info in dados_comodos.items():
+        if not info.get('estados'):
+            continue
+            
+        story.append(Paragraph(f"<b>{comodo_nome}</b>", styles['Heading3']))
+        
+        estados = info.get('estados', {})
+        obs = info.get('observacao', '')
+        fotos_b64 = info.get('fotos', [])
+
+        # Tabela de estados
+        estados_data = [
+            ['Paredes', 'Teto', 'Piso', 'Portas', 'Janelas', 'Móveis/Armários'],
+            [
+                estados.get('paredes', 'N/A'),
+                estados.get('teto', 'N/A'),
+                estados.get('piso', 'N/A'),
+                estados.get('portas', 'N/A'),
+                estados.get('janelas', 'N/A'),
+                estados.get('moveis', 'N/A')
+            ]
+        ]
+        
+        estados_table = Table(estados_data, colWidths=[1.08*inch]*6)
+        estados_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f1f5f9')),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('PADDING', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ]))
+        
+        story.append(estados_table)
+        
+        if obs:
+            story.append(Spacer(1, 6))
+            story.append(Paragraph(f"<b>Observações:</b> {obs}", styles['Normal']))
+        
+        # Fotos
+        if fotos_b64 and len(fotos_b64) > 0:
+            story.append(Spacer(1, 8))
+            story.append(Paragraph("<b>Fotos:</b>", styles['Normal']))
+            story.append(Spacer(1, 4))
+            
+            fotos_adicionadas = 0
+            for idx, foto_str in enumerate(fotos_b64[:4]):  # Máximo 4 fotos por cômodo
+                try:
+                    if foto_str and len(foto_str) > 0:
+                        img_data = base64.b64decode(foto_str)
+                        img_buffer = io.BytesIO(img_data)
+                        # Tentar abrir com PIL primeiro para validar
+                        pil_img = PilImage.open(img_buffer)
+                        img_buffer.seek(0)  # Voltar ao início
+                        img = RLImage(img_buffer, width=2.5*inch, height=2*inch)
+                        story.append(img)
+                        story.append(Spacer(1, 4))
+                        fotos_adicionadas += 1
+                except Exception as e:
+                    # Adicionar mensagem de erro no PDF para debug
+                    story.append(Paragraph(f"<i>[Erro ao carregar foto {idx+1}]</i>", styles['Normal']))
+                    continue
+            
+            if fotos_adicionadas == 0:
+                story.append(Paragraph("<i>Nenhuma foto foi carregada corretamente.</i>", styles['Normal']))
+
+        story.append(Spacer(1, 12))
+
+    # Observações gerais
+    story.append(Paragraph("OBSERVAÇÕES GERAIS", heading_style))
+    story.append(Paragraph(observacoes_gerais or "Nenhuma observação adicional.", styles['Normal']))
+    story.append(Spacer(1, 30))
+
+    # Assinaturas
+    story.append(Paragraph("ASSINATURAS", heading_style))
     story.append(Spacer(1, 20))
     
-    # Detalhes dos cômodos
-    if vistoria['dados_comodos']:
-        story.append(PageBreak())
-        story.append(Paragraph("Detalhes dos Cômodos", section_style))
-        
-        try:
-            dados_comodos = json.loads(vistoria['dados_comodos'])
-            
-            for tipo_comodo, comodos in dados_comodos.items():
-                if comodos:
-                    story.append(Paragraph(f"<b>{tipo_comodo.upper()}</b>", styles['Heading3']))
-                    story.append(Spacer(1, 10))
-                    
-                    for idx, comodo in enumerate(comodos, 1):
-                        comodo_data = [
-                            [f"{tipo_comodo} {idx}", ""],
-                            ["Estado:", comodo.get('estado', '-')],
-                            ["Observações:", comodo.get('observacoes', '-')],
-                        ]
-                        
-                        comodo_table = Table(comodo_data, colWidths=[120, 370])
-                        comodo_table.setStyle(TableStyle([
-                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a2b4a')),
-                            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                            ('BACKGROUND', (0, 1), (0, -1), colors.HexColor('#f8fafc')),
-                            ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#1a2b4a')),
-                            ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
-                            ('FONTSIZE', (0, 0), (-1, -1), 10),
-                            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
-                            ('PADDING', (0, 0), (-1, -1), 8),
-                        ]))
-                        
-                        story.append(comodo_table)
-                        story.append(Spacer(1, 15))
-                        
-                        # Fotos (se houver)
-                        fotos = comodo.get('fotos', [])
-                        if fotos:
-                            for foto in fotos:
-                                try:
-                                    img_data = base64.b64decode(foto.split(',')[1] if ',' in foto else foto)
-                                    img = PilImage.open(io.BytesIO(img_data))
-                                    
-                                    # Redimensionar imagem se necessário
-                                    max_width = 400
-                                    if img.width > max_width:
-                                        ratio = max_width / img.width
-                                        new_height = int(img.height * ratio)
-                                        img = img.resize((max_width, new_height))
-                                    
-                                    # Salvar imagem em buffer
-                                    img_buffer = io.BytesIO()
-                                    img.save(img_buffer, format='PNG')
-                                    img_buffer.seek(0)
-                                    
-                                    # Adicionar ao PDF
-                                    rl_img = RLImage(img_buffer, width=img.width, height=img.height)
-                                    story.append(rl_img)
-                                    story.append(Spacer(1, 10))
-                                except Exception as e:
-                                    print(f"Erro ao processar foto: {e}")
-        
-        except json.JSONDecodeError:
-            story.append(Paragraph("Erro ao carregar detalhes dos cômodos", styles['Normal']))
+    assinaturas_data = [
+        ['_________________________________', '_________________________________', '_________________________________'],
+        ['Corretor Responsável', 'Proprietário', 'Inquilino']
+    ]
     
-    # Observações gerais
-    if vistoria['observacoes_gerais']:
-        story.append(PageBreak())
-        story.append(Paragraph("Observações Gerais", section_style))
-        obs_style = ParagraphStyle(
-            'Obs',
-            parent=styles['Normal'],
-            fontSize=10,
-            alignment=TA_JUSTIFY,
-            spaceAfter=10
-        )
-        story.append(Paragraph(vistoria['observacoes_gerais'].replace('\n', '<br/>'), obs_style))
+    assinaturas_table = Table(assinaturas_data, colWidths=[2.1*inch]*3)
+    assinaturas_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+    
+    story.append(assinaturas_table)
     
     # Rodapé
     story.append(Spacer(1, 30))
-    footer_style = ParagraphStyle(
-        'Footer',
-        parent=styles['Normal'],
-        fontSize=8,
-        textColor=colors.grey,
-        alignment=TA_CENTER
-    )
-    story.append(Paragraph(f"Documento gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')}", footer_style))
-    story.append(Paragraph("Sistema de Vistoria de Imóveis - AF Imóveis", footer_style))
-    
-    # Construir PDF
+    story.append(Paragraph(
+        f"<i>Documento gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')}</i>",
+        ParagraphStyle('Footer', parent=styles['Normal'], fontSize=8, textColor=colors.grey, alignment=TA_CENTER)
+    ))
+
     doc.build(story)
-    
     buffer.seek(0)
     return buffer.getvalue()
 
 # ================= INTERFACE PRINCIPAL =================
 
 def main():
-    """Função principal do aplicativo"""
-    
     # Inicializar banco de dados
-    inicializar_bd()
+    init_db()
     
-    # Header com logo usando texto estilizado ao invés de imagem
-    st.markdown('''
-        <div class="header-container">
-            <div style="font-size: 3rem; margin-bottom: 0.5rem;">🏠</div>
-            <div class="app-title">AF Imóveis</div>
-            <div class="app-subtitle">Sistema Profissional de Vistoria de Imóveis</div>
-            <div style="margin-top: 1rem; color: #64748b; font-size: 0.9rem;">
-                📱 Compatível com Mobile | 💾 Sincronização em Nuvem | 📄 Laudos Profissionais
+    
+    # Header com logo - CARREGA LOGO01.PNG
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        try:
+            # Carrega a logo do arquivo
+            st.image("logo01.png", use_column_width=True)
+        except Exception as e:
+            # Se não encontrar a logo, mostra mensagem
+            st.warning("⚠️ Logo não encontrada. Adicione logo01.png na raiz do repositório.")
+        
+        st.markdown("""
+            <div style="text-align: center; background: white; padding: 1rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 2rem;">
+                <div style="font-size: 1.8rem; font-weight: 700; color: #1a2b4a; margin-top: 1rem;">
+                    Laudo de Vistoria
+                </div>
+                <div style="font-size: 1rem; color: #64748b; margin-top: 0.5rem;">
+                    Sistema Profissional de Gestão de Vistorias Imobiliárias
+                </div>
             </div>
-        </div>
-    ''', unsafe_allow_html=True)
-    
+        """, unsafe_allow_html=True)
+    with st.sidebar:
+        st.markdown("### 📊 Estatísticas")
+        df_all = get_vistorias()
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Total", len(df_all))
+        with col2:
+            concluidas = len(df_all[df_all['status'] == 'Concluída']) if not df_all.empty else 0
+            st.metric("Concluídas", concluidas)
+        
+        st.markdown("---")
+        st.markdown("""
+        ### 💡 Dicas de Uso
+        - 📱 Use no celular para vistoriar no local
+        - 💻 Acesse no desktop para revisar
+        - 📸 Tire fotos durante a vistoria
+        - 📄 Gere laudos em PDF profissionais
+        """)
+
     # Tabs principais
-    tab1, tab2, tab3 = st.tabs(["📝 Nova Vistoria", "📋 Vistorias", "💡 Ajuda"])
-    
+    tab1, tab2, tab3 = st.tabs(["📝 Nova Vistoria", "📋 Minhas Vistorias", "ℹ️ Ajuda"])
+
     # ========== TAB 1: NOVA VISTORIA ==========
     with tab1:
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.subheader("🏗️ Cadastrar Nova Vistoria")
-        
-        with st.form("form_vistoria", clear_on_submit=False):
-            st.markdown("### 📍 Informações do Imóvel")
-            
-            # Dados do endereço
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                endereco_rua = st.text_input("* Rua/Avenida", placeholder="Ex: Rua das Flores")
-            with col2:
-                endereco_numero = st.text_input("* Número", placeholder="123")
-            
-            col3, col4 = st.columns(2)
-            with col3:
-                endereco_complemento = st.text_input("Complemento", placeholder="Apto 45, Bloco B")
-            with col4:
-                bairro = st.text_input("* Bairro", placeholder="Centro")
-            
-            col5, col6, col7 = st.columns([2, 1, 1])
-            with col5:
-                cidade = st.text_input("* Cidade", placeholder="São Paulo")
-            with col6:
-                estado = st.selectbox("* Estado", [
-                    "SP", "RJ", "MG", "ES", "PR", "SC", "RS", "BA", "SE", "AL", 
-                    "PE", "PB", "RN", "CE", "PI", "MA", "PA", "AP", "AM", "RR", 
-                    "AC", "RO", "MT", "MS", "GO", "TO", "DF"
-                ])
-            with col7:
-                cep = st.text_input("CEP", placeholder="01234-567")
-            
-            st.markdown("---")
-            st.markdown("### 👥 Informações das Partes")
-            
-            col8, col9 = st.columns(2)
-            with col8:
-                proprietario = st.text_input("Proprietário", placeholder="Nome do proprietário")
-                corretor_responsavel = st.text_input("Corretor Responsável", placeholder="Nome do corretor")
-            with col9:
-                inquilino = st.text_input("Inquilino", placeholder="Nome do inquilino (se aplicável)")
-                tipo_vistoria = st.selectbox(
-                    "* Tipo de Vistoria",
-                    ["Entrada", "Saída", "Periódica", "Renovação"],
-                    help="Selecione o tipo de vistoria sendo realizada"
-                )
-            
-            st.markdown("---")
-            st.markdown("### 📅 Data e Horário")
-            
-            col10, col11 = st.columns(2)
-            with col10:
-                data_vistoria = st.date_input(
-                    "* Data da Vistoria",
-                    value=datetime.now(),
-                    help="Data em que a vistoria está sendo realizada"
-                )
-            with col11:
-                hora_vistoria = st.time_input(
-                    "Horário da Vistoria",
-                    value=datetime.now().time(),
-                    help="Horário de início da vistoria"
-                )
-            
-            st.markdown("---")
-            st.markdown("### 🏘️ Características do Imóvel")
-            
-            col12, col13, col14 = st.columns(3)
-            with col12:
-                quartos = st.number_input("Quartos", min_value=0, value=2, step=1)
-                banheiros = st.number_input("Banheiros", min_value=0, value=1, step=1)
-            with col13:
-                salas = st.number_input("Salas", min_value=0, value=1, step=1)
-                cozinhas = st.number_input("Cozinhas", min_value=0, value=1, step=1)
-            with col14:
-                areas_servico = st.number_input("Áreas de Serviço", min_value=0, value=1, step=1)
-                vagas_garagem = st.number_input("Vagas de Garagem", min_value=0, value=0, step=1)
-            
-            st.markdown("---")
-            st.markdown("### 📸 Detalhamento por Cômodo")
-            
-            # Estrutura para armazenar dados dos cômodos
-            dados_comodos = {}
-            tipos_comodos = {
-                'quartos': int(quartos),
-                'banheiros': int(banheiros),
-                'salas': int(salas),
-                'cozinhas': int(cozinhas),
-                'areas_servico': int(areas_servico)
-            }
-            
-            for tipo, quantidade in tipos_comodos.items():
-                if quantidade > 0:
-                    tipo_label = tipo.replace('_', ' ').title()
-                    
-                    with st.expander(f"📋 {tipo_label} ({quantidade})", expanded=False):
-                        comodos_lista = []
-                        
-                        for i in range(quantidade):
-                            st.markdown(f"**{tipo_label[:-1] if tipo_label.endswith('s') else tipo_label} {i+1}**")
-                            
-                            col_estado, col_obs = st.columns([1, 2])
-                            
-                            with col_estado:
-                                estado_comodo = st.selectbox(
-                                    "Estado",
-                                    ["Excelente", "Bom", "Regular", "Ruim", "Péssimo"],
-                                    key=f"estado_{tipo}_{i}",
-                                    help="Condição geral do cômodo"
-                                )
-                            
-                            with col_obs:
-                                obs_comodo = st.text_area(
-                                    "Observações",
-                                    key=f"obs_{tipo}_{i}",
-                                    height=100,
-                                    placeholder="Descreva detalhes importantes: danos, manchas, condição de pisos, paredes, etc."
-                                )
-                            
-                            # Upload de fotos
-                            fotos = st.file_uploader(
-                                f"📷 Fotos do {tipo_label[:-1] if tipo_label.endswith('s') else tipo_label} {i+1}",
-                                type=['png', 'jpg', 'jpeg'],
-                                accept_multiple_files=True,
-                                key=f"fotos_{tipo}_{i}",
-                                help="Tire fotos de diferentes ângulos do cômodo"
-                            )
-                            
-                            # Processar fotos para base64
-                            fotos_base64 = []
-                            if fotos:
-                                for foto in fotos:
-                                    img_bytes = foto.read()
-                                    img_base64 = base64.b64encode(img_bytes).decode()
-                                    fotos_base64.append(f"data:image/{foto.type.split('/')[-1]};base64,{img_base64}")
-                                    
-                                    # Preview das fotos
-                                    st.image(img_bytes, caption=foto.name, width=200)
-                            
-                            comodos_lista.append({
-                                'estado': estado_comodo,
-                                'observacoes': obs_comodo,
-                                'fotos': fotos_base64
-                            })
-                            
-                            st.markdown("---")
-                        
-                        dados_comodos[tipo] = comodos_lista
-            
-            st.markdown("---")
-            st.markdown("### 📝 Observações Gerais")
-            
+        with st.form("form_vistoria", clear_on_submit=True):
+            # Seção: Dados do Imóvel
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.subheader("🏢 Dados do Imóvel")
             
+            col1, col2 = st.columns(2)
+            with col1:
+                endereco_rua = st.text_input("Rua / Avenida *", placeholder="Ex: Rua das Flores")
+                endereco_numero = st.text_input("Número *", placeholder="Ex: 123")
+                endereco_complemento = st.text_input("Complemento", placeholder="Ex: Apto 45")
+                bairro = st.text_input("Bairro *", placeholder="Ex: Centro")
+            
+            with col2:
+                cidade = st.text_input("Cidade *", placeholder="Ex: São Paulo")
+                estado = st.selectbox("Estado *", [
+                    "", "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA",
+                    "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN",
+                    "RS", "RO", "RR", "SC", "SP", "SE", "TO"
+                ])
+                cep = st.text_input("CEP", placeholder="Ex: 01234-567")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # Seção: Partes Envolvidas
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.subheader("👥 Partes Envolvidas")
+            
+            col3, col4, col5 = st.columns(3)
+            with col3:
+                proprietario = st.text_input("Nome do Proprietário", placeholder="Nome completo")
+            with col4:
+                inquilino = st.text_input("Nome do Inquilino", placeholder="Nome completo")
+            with col5:
+                corretor_responsavel = st.text_input("Corretor Responsável *", placeholder="Seu nome")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # Seção: Informações da Vistoria
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.subheader("📅 Informações da Vistoria")
+            
+            col6, col7, col8 = st.columns(3)
+            with col6:
+                tipo_vistoria = st.selectbox("Tipo de Vistoria *", 
+                    ["Entrada", "Saída", "Periódica", "Renovação"])
+            with col7:
+                data_vistoria = st.date_input("Data *", value=datetime.now())
+            with col8:
+                hora_vistoria = st.time_input("Hora *", value=datetime.now().time())
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # Seção: Características do Imóvel
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.subheader("🔢 Características do Imóvel")
+            
+            col9, col10, col11 = st.columns(3)
+            with col9:
+                quartos = st.number_input("Quartos", min_value=0, max_value=20, step=1, value=0)
+                banheiros = st.number_input("Banheiros", min_value=0, max_value=10, step=1, value=0)
+            
+            with col10:
+                salas = st.number_input("Salas", min_value=0, max_value=10, step=1, value=0)
+                cozinhas = st.number_input("Cozinhas", min_value=0, max_value=5, step=1, value=0)
+            
+            with col11:
+                areas_servico = st.number_input("Áreas de Serviço", min_value=0, max_value=5, step=1, value=0)
+                vagas_garagem = st.number_input("Vagas de Garagem", min_value=0, max_value=10, step=1, value=0)
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # Seção: Detalhamento por Cômodo
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.subheader("🔍 Detalhamento por Cômodo")
+            
+            # Gerar lista dinâmica baseada nas quantidades informadas
+            comodos_lista = []
+            
+            # Adicionar quartos
+            for i in range(1, int(quartos) + 1):
+                comodos_lista.append(f"Quarto {i}")
+            
+            # Adicionar banheiros
+            for i in range(1, int(banheiros) + 1):
+                comodos_lista.append(f"Banheiro {i}")
+            
+            # Adicionar salas
+            for i in range(1, int(salas) + 1):
+                comodos_lista.append(f"Sala {i}")
+            
+            # Adicionar cozinhas
+            for i in range(1, int(cozinhas) + 1):
+                comodos_lista.append(f"Cozinha {i}")
+            
+            # Adicionar áreas de serviço
+            for i in range(1, int(areas_servico) + 1):
+                comodos_lista.append(f"Área de Serviço {i}")
+            
+            # Adicionar vagas de garagem
+            for i in range(1, int(vagas_garagem) + 1):
+                comodos_lista.append(f"Garagem/Vaga {i}")
+            
+            # Adicionar cômodos extras opcionais
+            comodos_extras = ["Varanda", "Quintal", "Lavabo", "Despensa", "Closet", "Escritório", "Outros"]
+            
+            st.info("💡 **Dica:** Os cômodos abaixo foram gerados baseado nas quantidades que você informou. Role para baixo para adicionar cômodos extras opcionais.")
+            
+            dados_comodos = {}
+
+            for nome_comodo in comodos_lista:
+                with st.expander(f"🚪 {nome_comodo}", expanded=False):
+                    col_a, col_b = st.columns(2)
+                    
+                    with col_a:
+                        paredes = st.selectbox(
+                            "Paredes",
+                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
+                            key=f"{nome_comodo}_paredes"
+                        )
+                        teto = st.selectbox(
+                            "Teto",
+                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
+                            key=f"{nome_comodo}_teto"
+                        )
+                        piso = st.selectbox(
+                            "Piso",
+                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
+                            key=f"{nome_comodo}_piso"
+                        )
+                    
+                    with col_b:
+                        portas = st.selectbox(
+                            "Portas",
+                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
+                            key=f"{nome_comodo}_portas"
+                        )
+                        janelas = st.selectbox(
+                            "Janelas",
+                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
+                            key=f"{nome_comodo}_janelas"
+                        )
+                        moveis = st.selectbox(
+                            "Móveis/Armários",
+                            ["Não se aplica", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
+                            key=f"{nome_comodo}_moveis"
+                        )
+
+                    obs_comodo = st.text_area(
+                        "Observações",
+                        placeholder="Descreva detalhes, danos, reparos necessários, etc.",
+                        key=f"{nome_comodo}_obs",
+                        height=100
+                    )
+
+                    fotos_comodo_files = st.file_uploader(
+                        "📸 Adicionar Fotos",
+                        accept_multiple_files=True,
+                        type=["jpg", "jpeg", "png"],
+                        key=f"{nome_comodo}_fotos",
+                        help="Você pode tirar fotos com a câmera do celular"
+                    )
+
+                    fotos_comodo_b64 = []
+                    if fotos_comodo_files:
+                        st.caption(f"✅ {len(fotos_comodo_files)} foto(s) adicionada(s)")
+                        for f in fotos_comodo_files:
+                            b64 = salvar_foto(f)
+                            if b64:
+                                fotos_comodo_b64.append(b64)
+
+                    # Só salvar dados se pelo menos um campo foi preenchido
+                    if any([
+                        paredes != "Não informado",
+                        teto != "Não informado",
+                        piso != "Não informado",
+                        portas != "Não informado",
+                        janelas != "Não informado",
+                        moveis != "Não se aplica",
+                        obs_comodo,
+                        fotos_comodo_b64
+                    ]):
+                        dados_comodos[nome_comodo] = {
+                            "estados": {
+                                "paredes": paredes,
+                                "teto": teto,
+                                "piso": piso,
+                                "portas": portas,
+                                "janelas": janelas,
+                                "moveis": moveis,
+                            },
+                            "observacao": obs_comodo,
+                            "fotos": fotos_comodo_b64,
+                        }
+            
+            # Seção: Cômodos Extras (Opcionais)
+            st.markdown("---")
+            st.markdown("### 🏠 Cômodos Extras (Opcionais)")
+            st.caption("Adicione outros cômodos que não foram incluídos nas quantidades acima")
+            
+            col_extras1, col_extras2 = st.columns(2)
+            with col_extras1:
+                extras_selecionados = st.multiselect(
+                    "Selecione cômodos extras para vistoriar:",
+                    comodos_extras,
+                    help="Marque os cômodos adicionais que existem no imóvel"
+                )
+            
+            # Processar cômodos extras selecionados
+            for nome_comodo in extras_selecionados:
+                with st.expander(f"🚪 {nome_comodo}", expanded=False):
+                    col_a, col_b = st.columns(2)
+                    
+                    with col_a:
+                        paredes = st.selectbox(
+                            "Paredes",
+                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
+                            key=f"{nome_comodo}_paredes"
+                        )
+                        teto = st.selectbox(
+                            "Teto",
+                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
+                            key=f"{nome_comodo}_teto"
+                        )
+                        piso = st.selectbox(
+                            "Piso",
+                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
+                            key=f"{nome_comodo}_piso"
+                        )
+                    
+                    with col_b:
+                        portas = st.selectbox(
+                            "Portas",
+                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
+                            key=f"{nome_comodo}_portas"
+                        )
+                        janelas = st.selectbox(
+                            "Janelas",
+                            ["Não informado", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
+                            key=f"{nome_comodo}_janelas"
+                        )
+                        moveis = st.selectbox(
+                            "Móveis/Armários",
+                            ["Não se aplica", "Ótimo", "Bom", "Regular", "Ruim", "Péssimo"],
+                            key=f"{nome_comodo}_moveis"
+                        )
+
+                    obs_comodo = st.text_area(
+                        "Observações",
+                        placeholder="Descreva detalhes, danos, reparos necessários, etc.",
+                        key=f"{nome_comodo}_obs",
+                        height=100
+                    )
+
+                    fotos_comodo_files = st.file_uploader(
+                        "📸 Adicionar Fotos",
+                        accept_multiple_files=True,
+                        type=["jpg", "jpeg", "png"],
+                        key=f"{nome_comodo}_fotos",
+                        help="Você pode tirar fotos com a câmera do celular"
+                    )
+
+                    fotos_comodo_b64 = []
+                    if fotos_comodo_files:
+                        st.caption(f"✅ {len(fotos_comodo_files)} foto(s) adicionada(s)")
+                        for f in fotos_comodo_files:
+                            b64 = salvar_foto(f)
+                            if b64:
+                                fotos_comodo_b64.append(b64)
+
+                    # Só salvar dados se pelo menos um campo foi preenchido
+                    if any([
+                        paredes != "Não informado",
+                        teto != "Não informado",
+                        piso != "Não informado",
+                        portas != "Não informado",
+                        janelas != "Não informado",
+                        moveis != "Não se aplica",
+                        obs_comodo,
+                        fotos_comodo_b64
+                    ]):
+                        dados_comodos[nome_comodo] = {
+                            "estados": {
+                                "paredes": paredes,
+                                "teto": teto,
+                                "piso": piso,
+                                "portas": portas,
+                                "janelas": janelas,
+                                "moveis": moveis,
+                            },
+                            "observacao": obs_comodo,
+                            "fotos": fotos_comodo_b64,
+                        }
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # Seção: Observações Finais
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.subheader("📝 Observações Gerais")
             observacoes_gerais = st.text_area(
-                "Observações Gerais da Vistoria",
+                "Informações adicionais importantes",
                 placeholder="Descreva qualquer informação relevante sobre o imóvel, condições gerais, acordos, etc.",
                 height=150
             )
