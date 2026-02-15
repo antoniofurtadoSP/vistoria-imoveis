@@ -33,20 +33,21 @@ st.markdown("""
     /* Importando fontes modernas */
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Inter:wght@300;400;500;600&display=swap');
     
-    /* Variáveis de tema */
+    /* Variáveis de tema - Paleta AF */
     :root {
-        --primary-color: #2563eb;
-        --secondary-color: #7c3aed;
+        --primary-color: #1a2b4a;
+        --secondary-color: #C9A961;
         --success-color: #10b981;
         --warning-color: #f59e0b;
         --danger-color: #ef4444;
-        --dark-bg: #1e293b;
+        --dark-bg: #1a2b4a;
         --light-bg: #f8fafc;
-        --text-dark: #1e293b;
+        --text-dark: #1a2b4a;
         --text-light: #64748b;
         --border-color: #e2e8f0;
         --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        --gold: #C9A961;
     }
     
     /* Reset e fonte base */
@@ -64,7 +65,7 @@ st.markdown("""
     /* Container principal */
     .main {
         padding: 1rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #1a2b4a 0%, #2d4a7c 100%);
         min-height: 100vh;
     }
     
@@ -209,7 +210,7 @@ st.markdown("""
     .app-title {
         font-size: 2.5rem;
         font-weight: 700;
-        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        background: linear-gradient(135deg, #C9A961, #d4b76a);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin-bottom: 0.5rem;
@@ -710,10 +711,13 @@ def main():
     # Inicializar banco de dados
     init_db()
     
-    # Header customizado
-    st.markdown("""
+    # Header customizado com logo do GitHub
+    # URL da logo no repositório GitHub
+    logo_url = "https://raw.githubusercontent.com/antoniofurtadoSP/vistoria-imoveis/main/logo01.png"
+    
+    st.markdown(f"""
         <div class="header-container">
-            <div class="app-title">🏠 Vistoria Imóveis Pro</div>
+            <img src="{logo_url}" style="max-width: 400px; margin-bottom: 1rem;" onerror="this.style.display='none'">
             <div class="app-subtitle">Sistema Profissional de Gestão de Vistorias Imobiliárias</div>
         </div>
     """, unsafe_allow_html=True)
