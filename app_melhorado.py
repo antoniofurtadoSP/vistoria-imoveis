@@ -272,6 +272,9 @@ def init_session_state():
         "rascunho_id":         None,
         "ultimo_auto_save":    None,
         "vistoria_finalizada": False,
+        "modo_edicao":         False,   # True quando editando vistoria concluída
+        "status_original":     None,    # Status antes de editar
+        "ir_para_tab1":        False,   # Sinaliza para mostrar aviso na tab1
         "f_tipo_imovel":       "Residencial",
         "f_subtipo_comercial": "Ponto Comercial",
         "f_end_rua":           "",
@@ -300,7 +303,8 @@ def init_session_state():
 def limpar_formulario():
     for key in list(st.session_state.keys()):
         if key.startswith("f_") or key.startswith("w_") or key in (
-            "rascunho_id", "ultimo_auto_save", "vistoria_finalizada"
+            "rascunho_id", "ultimo_auto_save", "vistoria_finalizada",
+            "modo_edicao", "status_original", "ir_para_tab1"
         ):
             del st.session_state[key]
     init_session_state()
@@ -402,6 +406,10 @@ def montar_dados(dados_comodos_atual, status_override=None):
 
 def auto_salvar(dados_comodos_atual):
     s = st.session_state
+    # Não auto-salvar se estiver editando vistoria concluída sem ter feito alterações ainda
+    # (evita mudar status para Rascunho sem querer)
+    if s.modo_edicao and s.ultimo_auto_save is None:
+        return
     tem_dados = (
         bool(s.f_end_rua) or bool(s.f_corretor) or bool(s.f_proprietario) or
         bool(dados_comodos_atual) or
@@ -415,7 +423,7 @@ def auto_salvar(dados_comodos_atual):
         return
     dados  = montar_dados(dados_comodos_atual, status_override='Rascunho')
     novo_id = salvar_vistoria(dados, vistoria_id=s.rascunho_id)
-    st.session_state.rascunho_id    = novo_id
+    st.session_state.rascunho_id      = novo_id
     st.session_state.ultimo_auto_save = agora
 
 
@@ -775,23 +783,39 @@ def main():
     # ====== TAB 1 ======
     with tab1:
 
+        # Limpar flag de redirecionamento (chegou aqui, pode apagar)
+        if st.session_state.ir_para_tab1:
+            st.session_state.ir_para_tab1 = False
+
         # Tela de sucesso
         if st.session_state.vistoria_finalizada:
-            st.success("✅ Vistoria finalizada! Acesse 'Minhas Vistorias' para gerar o PDF.")
+            st.success("✅ Vistoria salva com sucesso! Acesse 'Minhas Vistorias' para gerar o PDF.")
             if st.button("➕ Nova Vistoria", key="btn_nova"):
                 st.session_state.vistoria_finalizada = False
                 limpar_formulario()
                 st.rerun()
             st.stop()
 
-        # Banner: rascunho em andamento
-        if st.session_state.rascunho_id:
+        # Banner: modo edição de vistoria concluída
+        if st.session_state.modo_edicao and st.session_state.rascunho_id:
+            st.markdown(f"""
+                <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border:2px solid #3b82f6;
+                            border-radius:12px;padding:1rem 1.5rem;margin-bottom:1rem;">
+                    ✏️ <b>Modo Edição</b> — Vistoria ID {st.session_state.rascunho_id} carregada.<br>
+                    <span style="font-size:0.9rem;color:#1e40af;">
+                    Faça as alterações desejadas e clique em <b>✅ Salvar Alterações</b> quando terminar.
+                    </span>
+                </div>""", unsafe_allow_html=True)
+
+        # Banner: rascunho em andamento (nova vistoria)
+        elif st.session_state.rascunho_id:
             ts = st.session_state.ultimo_auto_save
             ts_str = ts.strftime('%H:%M:%S') if ts else "—"
             st.markdown(f"""
                 <div class="salvo-banner">
                     💾 Rascunho salvo automaticamente às <b>{ts_str}</b> — seus dados estão seguros.
                 </div>""", unsafe_allow_html=True)
+
         else:
             # Banner: há rascunhos para retomar
             df_r = get_rascunhos()
@@ -821,16 +845,21 @@ def main():
         cb1, cb2, cb3 = st.columns(3)
 
         with cb1:
-            if st.button("💾 Salvar Rascunho Agora", use_container_width=True):
-                dados = montar_dados(dados_comodos, status_override='Rascunho')
-                novo_id = salvar_vistoria(dados, vistoria_id=st.session_state.rascunho_id)
-                st.session_state.rascunho_id    = novo_id
-                st.session_state.ultimo_auto_save = datetime.now()
-                st.success(f"💾 Rascunho salvo! (ID {novo_id})")
+            # No modo edição, não faz sentido salvar como rascunho
+            if not st.session_state.modo_edicao:
+                if st.button("💾 Salvar Rascunho Agora", use_container_width=True):
+                    dados = montar_dados(dados_comodos, status_override='Rascunho')
+                    novo_id = salvar_vistoria(dados, vistoria_id=st.session_state.rascunho_id)
+                    st.session_state.rascunho_id      = novo_id
+                    st.session_state.ultimo_auto_save = datetime.now()
+                    st.success(f"💾 Rascunho salvo! (ID {novo_id})")
 
         with cb2:
-            if st.button("✅ Finalizar Vistoria", use_container_width=True, type="primary"):
-                dados = montar_dados(dados_comodos)
+            btn_finalizar = "✅ Salvar Alterações" if st.session_state.modo_edicao else "✅ Finalizar Vistoria"
+            if st.button(btn_finalizar, use_container_width=True, type="primary"):
+                # Em modo edição, manter o status original (não mudar para o que está no selectbox)
+                status_final = st.session_state.status_original if st.session_state.modo_edicao else None
+                dados = montar_dados(dados_comodos, status_override=status_final)
                 erros = validar_dados(dados)
                 if erros:
                     for e in erros:
@@ -838,19 +867,29 @@ def main():
                 else:
                     salvar_vistoria(dados, vistoria_id=st.session_state.rascunho_id)
                     st.session_state.vistoria_finalizada = True
-                    st.session_state.rascunho_id = None
+                    st.session_state.rascunho_id  = None
+                    st.session_state.modo_edicao  = False
+                    st.session_state.status_original = None
                     st.balloons()
                     st.rerun()
 
         with cb3:
-            if st.button("🗑️ Descartar Rascunho", use_container_width=True):
-                if st.session_state.rascunho_id:
+            btn_cancelar = "❌ Cancelar Edição" if st.session_state.modo_edicao else "🗑️ Descartar Rascunho"
+            if st.button(btn_cancelar, use_container_width=True):
+                # No modo edição, apenas limpa o formulário SEM deletar a vistoria original
+                if not st.session_state.modo_edicao and st.session_state.rascunho_id:
                     deletar_vistoria(st.session_state.rascunho_id)
                 limpar_formulario()
                 st.rerun()
 
     # ====== TAB 2 ======
     with tab2:
+
+        # Aviso de redirecionamento quando acabou de clicar em Editar
+        if st.session_state.modo_edicao and st.session_state.rascunho_id:
+            st.success(f"✅ Vistoria ID {st.session_state.rascunho_id} carregada! "
+                       f"Clique na aba **📝 Nova Vistoria** para editar.")
+
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.subheader("📋 Vistorias Cadastradas")
         cf1, cf2, cf3 = st.columns([2,1,1])
@@ -899,22 +938,24 @@ def main():
                 row_sel    = df[df['id'] == vid]
                 status_sel = row_sel['status'].values[0] if not row_sel.empty else ''
                 if status_sel == 'Rascunho':
-                    st.warning("⚠️ Rascunho não finalizado — clique em ✏️ Editar para retomar.")
+                    st.warning("⚠️ Rascunho não finalizado.")
                 else:
-                    st.info(f"Status: **{status_sel}** — clique em ✏️ Editar para alterar qualquer informação.")
+                    st.info(f"Status atual: **{status_sel}**")
+
             with ca2:
                 st.write(""); st.write("")
                 cb1, cb2, cb3, cb4 = st.columns(4)
                 with cb1:
-                    # Editar funciona para QUALQUER status
                     btn_label = "▶️ Continuar" if status_sel == 'Rascunho' else "✏️ Editar"
-                    if st.button(btn_label, use_container_width=True):
+                    if st.button(btn_label, use_container_width=True, key="btn_editar"):
                         limpar_formulario()
                         carregar_rascunho_no_estado(int(vid))
                         st.session_state.vistoria_finalizada = False
-                        # Se não é rascunho, manter o status original para não sobrescrever
-                        if status_sel != 'Rascunho':
-                            st.session_state.f_status = status_sel
+                        st.session_state.modo_edicao         = (status_sel != 'Rascunho')
+                        st.session_state.status_original     = status_sel
+                        st.session_state.ir_para_tab1        = True
+                        # Não marca auto_save ainda para não sobrescrever status
+                        st.session_state.ultimo_auto_save    = None
                         st.rerun()
                 with cb2:
                     if st.button("📄 PDF", use_container_width=True):
