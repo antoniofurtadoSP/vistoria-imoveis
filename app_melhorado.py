@@ -529,15 +529,30 @@ def gerar_pdf_profissional(row):
             story.append(Spacer(1,6))
             story.append(Paragraph("<b>Fotos:</b>", styles['Normal']))
             story.append(Spacer(1,4))
-            for idx, fs in enumerate(fotos[:4]):
+            # Montar imagens em linhas de 3
+            imgs_renderizadas = []
+            for idx, fs in enumerate(fotos[:9]):  # máximo 9 fotos (3 linhas)
                 try:
                     if ',' in fs: fs = fs.split(',',1)[1]
                     buf2 = io.BytesIO(base64.b64decode(fs))
                     PilImage.open(buf2); buf2.seek(0)
-                    story.append(RLImage(buf2, width=2.5*inch, height=2*inch))
-                    story.append(Spacer(1,4))
+                    imgs_renderizadas.append(RLImage(buf2, width=2.0*inch, height=1.6*inch))
                 except Exception:
-                    story.append(Paragraph(f"<i>[Foto {idx+1} indisponível]</i>", styles['Normal']))
+                    imgs_renderizadas.append(Paragraph(f"<i>[Foto {idx+1}]</i>", styles['Normal']))
+            # Agrupar em linhas de 3
+            for i in range(0, len(imgs_renderizadas), 3):
+                linha = imgs_renderizadas[i:i+3]
+                # Completar a linha com células vazias se necessário
+                while len(linha) < 3:
+                    linha.append("")
+                foto_table = Table([linha], colWidths=[2.1*inch]*3)
+                foto_table.setStyle(TableStyle([
+                    ('ALIGN',   (0,0),(-1,-1),'CENTER'),
+                    ('VALIGN',  (0,0),(-1,-1),'MIDDLE'),
+                    ('PADDING', (0,0),(-1,-1),4),
+                ]))
+                story.append(foto_table)
+                story.append(Spacer(1,4))
         story.append(Spacer(1,10))
 
     story.append(Paragraph("OBSERVAÇÕES GERAIS", heading_style))
@@ -683,7 +698,12 @@ def renderizar_formulario():
                         for foto in fotos_up:
                             b = foto.read()
                             fotos_novas.append(f"data:image/{foto.type.split('/')[-1]};base64,{base64.b64encode(b).decode()}")
-                            st.image(b, caption=foto.name, width=200)
+                        # Exibir preview em grade de 3 colunas
+                        cols_foto = st.columns(3)
+                        for fi, foto in enumerate(fotos_up):
+                            foto.seek(0)
+                            with cols_foto[fi % 3]:
+                                st.image(foto.read(), caption=foto.name, use_column_width=True)
                     dados_comodos[nome] = {
                         "estado_geral": estado,
                         "observacoes":  obs,
@@ -879,17 +899,23 @@ def main():
                 row_sel    = df[df['id'] == vid]
                 status_sel = row_sel['status'].values[0] if not row_sel.empty else ''
                 if status_sel == 'Rascunho':
-                    st.warning("⚠️ Rascunho não finalizado — clique em ✏️ Continuar para retomar.")
+                    st.warning("⚠️ Rascunho não finalizado — clique em ✏️ Editar para retomar.")
+                else:
+                    st.info(f"Status: **{status_sel}** — clique em ✏️ Editar para alterar qualquer informação.")
             with ca2:
                 st.write(""); st.write("")
                 cb1, cb2, cb3, cb4 = st.columns(4)
                 with cb1:
-                    if status_sel == 'Rascunho':
-                        if st.button("✏️ Continuar", use_container_width=True):
-                            limpar_formulario()
-                            carregar_rascunho_no_estado(int(vid))
-                            st.session_state.vistoria_finalizada = False
-                            st.rerun()
+                    # Editar funciona para QUALQUER status
+                    btn_label = "▶️ Continuar" if status_sel == 'Rascunho' else "✏️ Editar"
+                    if st.button(btn_label, use_container_width=True):
+                        limpar_formulario()
+                        carregar_rascunho_no_estado(int(vid))
+                        st.session_state.vistoria_finalizada = False
+                        # Se não é rascunho, manter o status original para não sobrescrever
+                        if status_sel != 'Rascunho':
+                            st.session_state.f_status = status_sel
+                        st.rerun()
                 with cb2:
                     if st.button("📄 PDF", use_container_width=True):
                         row = get_vistoria_by_id(int(vid))
@@ -949,9 +975,10 @@ def main():
 
         ### 💡 Dicas
         - Campos com quantidade **0** não aparecem no formulário nem no PDF
-        - O PDF inclui até **4 fotos por ambiente**
+        - O PDF inclui até **9 fotos por ambiente** (3 por linha)
         - Use **💾 Salvar Rascunho Agora** antes de sair se quiser garantir o salvamento
         - Na aba Minhas Vistorias filtre por **Rascunho** para ver pendências
+        - O botão **✏️ Editar** funciona para qualquer vistoria, mesmo as já concluídas
         """)
         st.markdown('</div>', unsafe_allow_html=True)
 
