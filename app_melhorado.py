@@ -334,7 +334,8 @@ def nome_imovel_completo(tipo_imovel, subtipo_comercial):
 
 def gerar_pdf_profissional(row):
     # Detecta o schema do banco (com ou sem colunas de migração)
-    cols = [desc[0] for desc in sqlite3.connect(DB_NAME).execute("PRAGMA table_info(vistorias)").fetchall()]
+    # PRAGMA table_info retorna (cid, name, type, notnull, dflt, pk) → usar desc[1] para o nome
+    cols = [desc[1] for desc in sqlite3.connect(DB_NAME).execute("PRAGMA table_info(vistorias)").fetchall()]
 
     row_dict = dict(zip(cols, row))
 
