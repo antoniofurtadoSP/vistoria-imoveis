@@ -575,228 +575,235 @@ def main():
     # TAB 1 — NOVA VISTORIA
     # ==============================
     with tab1:
-        with st.form("form_vistoria", clear_on_submit=True):
+        # IMPORTANTE: sem st.form para que a tela reaja em tempo real
+        # quando o usuário altera as quantidades de ambientes.
 
-            # --- TIPO DE IMÓVEL ---
-            st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.subheader("🏷️ Tipo de Imóvel")
+        # --- TIPO DE IMÓVEL ---
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.subheader("🏷️ Tipo de Imóvel")
 
-            col_ti1, col_ti2 = st.columns(2)
-            with col_ti1:
-                tipo_imovel = st.selectbox(
-                    "Categoria do Imóvel *",
-                    ["Residencial", "Comercial"],
-                    help="Escolha se o imóvel é residencial ou comercial"
+        col_ti1, col_ti2 = st.columns(2)
+        with col_ti1:
+            tipo_imovel = st.selectbox(
+                "Categoria do Imóvel *",
+                ["Residencial", "Comercial"],
+                key="tipo_imovel",
+                help="Escolha se o imóvel é residencial ou comercial"
+            )
+        with col_ti2:
+            if tipo_imovel == "Comercial":
+                subtipo_comercial = st.selectbox(
+                    "Subtipo Comercial *",
+                    TIPOS_COMERCIAIS,
+                    key="subtipo_comercial",
+                    help="Selecione o tipo específico do imóvel comercial"
                 )
-            with col_ti2:
-                if tipo_imovel == "Comercial":
-                    subtipo_comercial = st.selectbox(
-                        "Subtipo Comercial *",
-                        TIPOS_COMERCIAIS,
-                        help="Selecione o tipo específico do imóvel comercial"
-                    )
-                    st.markdown(
-                        f'<div class="comercial-highlight">🏢 Os <b>cômodos/ambientes</b> e a vistoria serão configurados automaticamente para <b>{subtipo_comercial}</b>.</div>',
-                        unsafe_allow_html=True
-                    )
-                else:
-                    subtipo_comercial = None
-                    st.markdown(
-                        '<div class="comercial-highlight">🏠 Vistoria padrão para imóvel <b>residencial</b> com quartos, salas, banheiros e demais cômodos.</div>',
-                        unsafe_allow_html=True
-                    )
+                st.markdown(
+                    f'<div class="comercial-highlight">🏢 Os <b>ambientes</b> serão configurados automaticamente para <b>{subtipo_comercial}</b>.</div>',
+                    unsafe_allow_html=True
+                )
+            else:
+                subtipo_comercial = None
+                st.markdown(
+                    '<div class="comercial-highlight">🏠 Vistoria padrão para imóvel <b>residencial</b> com quartos, salas, banheiros e demais cômodos.</div>',
+                    unsafe_allow_html=True
+                )
 
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-            # --- DADOS DO IMÓVEL ---
-            st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.subheader("🏢 Dados do Imóvel")
+        # --- DADOS DO IMÓVEL ---
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.subheader("🏢 Dados do Imóvel")
 
-            col1, col2 = st.columns(2)
-            with col1:
-                endereco_rua        = st.text_input("Rua / Avenida *", placeholder="Ex: Rua das Flores")
-                endereco_numero     = st.text_input("Número *", placeholder="Ex: 123")
-                endereco_complemento = st.text_input("Complemento", placeholder="Ex: Sala 45 / Loja A")
-                bairro              = st.text_input("Bairro *", placeholder="Ex: Centro")
-            with col2:
-                cidade = st.text_input("Cidade *", placeholder="Ex: São Paulo")
-                estado_uf = st.selectbox("Estado *", [
-                    "", "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA",
-                    "MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN",
-                    "RS","RO","RR","SC","SP","SE","TO"
-                ])
-                cep = st.text_input("CEP", placeholder="Ex: 01234-567")
+        col1, col2 = st.columns(2)
+        with col1:
+            endereco_rua         = st.text_input("Rua / Avenida *", placeholder="Ex: Rua das Flores", key="end_rua")
+            endereco_numero      = st.text_input("Número *", placeholder="Ex: 123", key="end_num")
+            endereco_complemento = st.text_input("Complemento", placeholder="Ex: Sala 45 / Loja A", key="end_comp")
+            bairro               = st.text_input("Bairro *", placeholder="Ex: Centro", key="end_bairro")
+        with col2:
+            cidade    = st.text_input("Cidade *", placeholder="Ex: São Paulo", key="end_cidade")
+            estado_uf = st.selectbox("Estado *", [
+                "", "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA",
+                "MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN",
+                "RS","RO","RR","SC","SP","SE","TO"
+            ], key="end_estado")
+            cep = st.text_input("CEP", placeholder="Ex: 01234-567", key="end_cep")
 
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-            # --- PARTES ENVOLVIDAS ---
-            st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.subheader("👥 Partes Envolvidas")
+        # --- PARTES ENVOLVIDAS ---
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.subheader("👥 Partes Envolvidas")
 
-            col3, col4, col5 = st.columns(3)
-            with col3:
-                proprietario = st.text_input("Proprietário", placeholder="Nome completo")
-            with col4:
-                inquilino_label = "Inquilino / Locatário" if tipo_imovel == "Residencial" else "Empresa / Locatária"
-                inquilino = st.text_input(inquilino_label, placeholder="Nome completo ou Razão Social")
-            with col5:
-                corretor_responsavel = st.text_input("Corretor Responsável *", placeholder="Seu nome")
+        col3, col4, col5 = st.columns(3)
+        with col3:
+            proprietario = st.text_input("Proprietário", placeholder="Nome completo", key="proprietario")
+        with col4:
+            inquilino_label = "Inquilino / Locatário" if tipo_imovel == "Residencial" else "Empresa / Locatária"
+            inquilino = st.text_input(inquilino_label, placeholder="Nome completo ou Razão Social", key="inquilino")
+        with col5:
+            corretor_responsavel = st.text_input("Corretor Responsável *", placeholder="Seu nome", key="corretor")
 
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-            # --- INFORMAÇÕES DA VISTORIA ---
-            st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.subheader("📅 Informações da Vistoria")
+        # --- INFORMAÇÕES DA VISTORIA ---
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.subheader("📅 Informações da Vistoria")
 
-            col6, col7, col8 = st.columns(3)
-            with col6:
-                tipo_vistoria = st.selectbox("Tipo de Vistoria *",
-                    ["Entrada", "Saída", "Periódica", "Renovação"])
-            with col7:
-                data_vistoria = st.date_input("Data *", value=datetime.now())
-            with col8:
-                hora_vistoria = st.time_input("Hora *", value=datetime.now().time())
+        col6, col7, col8 = st.columns(3)
+        with col6:
+            tipo_vistoria = st.selectbox("Tipo de Vistoria *",
+                ["Entrada", "Saída", "Periódica", "Renovação"], key="tipo_vistoria")
+        with col7:
+            data_vistoria = st.date_input("Data *", value=datetime.now(), key="data_vistoria")
+        with col8:
+            hora_vistoria = st.time_input("Hora *", value=datetime.now().time(), key="hora_vistoria")
 
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-            # --- QUANTIDADES DE AMBIENTES (dinâmico) ---
-            config = get_config_imovel(tipo_imovel, subtipo_comercial)
-            comodos_config = config["comodos"]
-            icone_tipo = config["icone"]
+        # --- QUANTIDADES DE AMBIENTES (dinâmico) ---
+        # Reage imediatamente pois não está dentro de st.form
+        config        = get_config_imovel(tipo_imovel, subtipo_comercial)
+        comodos_config = config["comodos"]
+        icone_tipo    = config["icone"]
 
-            st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.subheader(f"{icone_tipo} Quantidades de Ambientes")
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.subheader(f"{icone_tipo} Quantidades de Ambientes")
+        st.caption("Altere os números abaixo — os campos de detalhe aparecem automaticamente.")
 
-            # Exibe campos de quantidade para cada cômodo do tipo selecionado
-            qtd_comodos = {}
-            cols_qtd = st.columns(3)
-            for idx, (chave, label) in enumerate(comodos_config.items()):
-                with cols_qtd[idx % 3]:
-                    qtd_comodos[chave] = st.number_input(
-                        label, min_value=0, max_value=20, step=1, value=0,
-                        key=f"qtd_{chave}"
-                    )
+        qtd_comodos = {}
+        cols_qtd = st.columns(3)
+        for idx, (chave, label) in enumerate(comodos_config.items()):
+            with cols_qtd[idx % 3]:
+                qtd_comodos[chave] = st.number_input(
+                    label, min_value=0, max_value=20, step=1, value=0,
+                    key=f"qtd_{chave}"
+                )
 
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-            # --- DETALHAMENTO POR AMBIENTE (dinâmico) ---
+        # --- DETALHAMENTO POR AMBIENTE (aparece ao vivo) ---
+        ambientes_com_dados = [c for c, l in comodos_config.items() if int(qtd_comodos.get(c, 0)) > 0]
+
+        if ambientes_com_dados:
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
             st.subheader("🔍 Detalhamento por Ambiente")
 
-            dados_comodos = {}
+        dados_comodos = {}
 
-            for chave, label in comodos_config.items():
-                quantidade = int(qtd_comodos.get(chave, 0))
-                if quantidade == 0:
-                    continue
+        for chave, label in comodos_config.items():
+            quantidade = int(qtd_comodos.get(chave, 0))
+            if quantidade == 0:
+                continue
 
-                # Nome no singular aproximado (remove 's' final se plural)
-                label_singular = label.rstrip('s') if label.endswith('s') and not label.endswith('ss') else label
+            label_singular = label.rstrip('s') if label.endswith('s') and not label.endswith('ss') else label
 
-                with st.expander(f"{icone_tipo} {label} ({quantidade})", expanded=False):
-                    for i in range(quantidade):
-                        nome_comodo = f"{label_singular} {i + 1}"
-                        st.markdown(f"**{nome_comodo}**")
+            with st.expander(f"{icone_tipo} {label} ({quantidade})", expanded=True):
+                for i in range(quantidade):
+                    nome_comodo = f"{label_singular} {i + 1}"
+                    st.markdown(f"**{nome_comodo}**")
 
-                        col_est, col_obs = st.columns([1, 2])
-                        with col_est:
-                            estado_geral = st.selectbox(
-                                "Estado Geral",
-                                ["Excelente", "Bom", "Regular", "Ruim", "Péssimo"],
-                                key=f"estado_{chave}_{i}",
-                                help="Condição geral do ambiente"
-                            )
-                        with col_obs:
-                            obs_comodo = st.text_area(
-                                "Observações detalhadas",
-                                key=f"obs_{chave}_{i}",
-                                height=100,
-                                placeholder="Descreva: paredes, teto, piso, portas, janelas, instalações, danos, etc."
-                            )
-
-                        fotos = st.file_uploader(
-                            f"📷 Fotos — {nome_comodo}",
-                            type=["png", "jpg", "jpeg"],
-                            accept_multiple_files=True,
-                            key=f"fotos_{chave}_{i}",
-                            help="Adicione fotos de ângulos diferentes"
+                    col_est, col_obs = st.columns([1, 2])
+                    with col_est:
+                        estado_geral = st.selectbox(
+                            "Estado Geral",
+                            ["Excelente", "Bom", "Regular", "Ruim", "Péssimo"],
+                            key=f"estado_{chave}_{i}",
+                        )
+                    with col_obs:
+                        obs_comodo = st.text_area(
+                            "Observações detalhadas",
+                            key=f"obs_{chave}_{i}",
+                            height=100,
+                            placeholder="Descreva: paredes, teto, piso, portas, janelas, instalações, danos, etc."
                         )
 
-                        fotos_base64 = []
-                        if fotos:
-                            for foto in fotos:
-                                img_bytes = foto.read()
-                                img_b64 = base64.b64encode(img_bytes).decode()
-                                fotos_base64.append(
-                                    f"data:image/{foto.type.split('/')[-1]};base64,{img_b64}"
-                                )
-                                st.image(img_bytes, caption=foto.name, width=200)
+                    fotos = st.file_uploader(
+                        f"📷 Fotos — {nome_comodo}",
+                        type=["png", "jpg", "jpeg"],
+                        accept_multiple_files=True,
+                        key=f"fotos_{chave}_{i}",
+                    )
 
-                        dados_comodos[nome_comodo] = {
-                            "estado_geral": estado_geral,
-                            "observacoes":  obs_comodo,
-                            "fotos":        fotos_base64,
-                        }
+                    fotos_base64 = []
+                    if fotos:
+                        for foto in fotos:
+                            img_bytes = foto.read()
+                            img_b64 = base64.b64encode(img_bytes).decode()
+                            fotos_base64.append(
+                                f"data:image/{foto.type.split('/')[-1]};base64,{img_b64}"
+                            )
+                            st.image(img_bytes, caption=foto.name, width=200)
 
-                        if i < quantidade - 1:
-                            st.markdown("---")
+                    dados_comodos[nome_comodo] = {
+                        "estado_geral": estado_geral,
+                        "observacoes":  obs_comodo,
+                        "fotos":        fotos_base64,
+                    }
 
+                    if i < quantidade - 1:
+                        st.markdown("---")
+
+        if ambientes_com_dados:
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # --- OBSERVAÇÕES FINAIS ---
-            st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.subheader("📝 Observações Gerais")
+        # --- OBSERVAÇÕES FINAIS ---
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.subheader("📝 Observações Gerais")
 
-            observacoes_gerais = st.text_area(
-                "Informações adicionais importantes",
-                placeholder="Condições gerais do imóvel, acordos, pendências, etc.",
-                height=150
-            )
-            status = st.selectbox(
-                "Status da Vistoria",
-                ["Concluída", "Pendente", "Problemas Identificados"]
-            )
-            st.markdown('</div>', unsafe_allow_html=True)
+        observacoes_gerais = st.text_area(
+            "Informações adicionais importantes",
+            placeholder="Condições gerais do imóvel, acordos, pendências, etc.",
+            height=150,
+            key="obs_gerais"
+        )
+        status = st.selectbox(
+            "Status da Vistoria",
+            ["Concluída", "Pendente", "Problemas Identificados"],
+            key="status_vistoria"
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
 
-            # Botão salvar
-            col_s1, col_s2, col_s3 = st.columns([1, 2, 1])
-            with col_s2:
-                submitted = st.form_submit_button("💾 Salvar Vistoria", use_container_width=True)
+        # Botão salvar (st.button normal, não form_submit_button)
+        col_s1, col_s2, col_s3 = st.columns([1, 2, 1])
+        with col_s2:
+            submitted = st.button("💾 Salvar Vistoria", use_container_width=True, type="primary")
 
-            if submitted:
-                endereco_completo = f"{endereco_rua}, {endereco_numero}"
-                if endereco_complemento:
-                    endereco_completo += f" - {endereco_complemento}"
-                endereco_completo += f" - {bairro} - {cidade}/{estado_uf}"
-                if cep:
-                    endereco_completo += f" - CEP: {cep}"
+        if submitted:
+            endereco_completo = f"{endereco_rua}, {endereco_numero}"
+            if endereco_complemento:
+                endereco_completo += f" - {endereco_complemento}"
+            endereco_completo += f" - {bairro} - {cidade}/{estado_uf}"
+            if cep:
+                endereco_completo += f" - CEP: {cep}"
 
-                dados = {
-                    'tipo_imovel':        tipo_imovel,
-                    'subtipo_comercial':  subtipo_comercial or '',
-                    'endereco':           endereco_completo,
-                    'proprietario':       proprietario,
-                    'inquilino':          inquilino,
-                    'corretor_responsavel': corretor_responsavel,
-                    'tipo_vistoria':      tipo_vistoria,
-                    'data_vistoria':      str(data_vistoria),
-                    'hora_vistoria':      str(hora_vistoria),
-                    'dados_comodos':      json.dumps(dados_comodos, ensure_ascii=False),
-                    'observacoes_gerais': observacoes_gerais,
-                    'status':             status,
-                }
+            dados = {
+                'tipo_imovel':          tipo_imovel,
+                'subtipo_comercial':    subtipo_comercial or '',
+                'endereco':             endereco_completo,
+                'proprietario':         proprietario,
+                'inquilino':            inquilino,
+                'corretor_responsavel': corretor_responsavel,
+                'tipo_vistoria':        tipo_vistoria,
+                'data_vistoria':        str(data_vistoria),
+                'hora_vistoria':        str(hora_vistoria),
+                'dados_comodos':        json.dumps(dados_comodos, ensure_ascii=False),
+                'observacoes_gerais':   observacoes_gerais,
+                'status':               status,
+            }
 
-                erros = validar_dados(dados)
-                if erros:
-                    for erro in erros:
-                        st.error(f"❌ {erro}")
-                else:
-                    try:
-                        salvar_vistoria(dados)
-                        st.success("✅ Vistoria salva com sucesso!")
-                        st.balloons()
-                    except Exception as e:
-                        st.error(f"❌ Erro ao salvar: {str(e)}")
+            erros = validar_dados(dados)
+            if erros:
+                for erro in erros:
+                    st.error(f"❌ {erro}")
+            else:
+                try:
+                    salvar_vistoria(dados)
+                    st.success("✅ Vistoria salva com sucesso! Acesse a aba 'Minhas Vistorias' para ver o registro.")
+                    st.balloons()
+                except Exception as e:
+                    st.error(f"❌ Erro ao salvar: {str(e)}")
 
     # ==============================
     # TAB 2 — LISTA DE VISTORIAS
