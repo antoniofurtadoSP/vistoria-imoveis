@@ -438,6 +438,14 @@ def validar_dados(dados):
     return erros
 
 
+def formatar_data(data_str):
+    """Converte YYYY-MM-DD para DD/MM/YYYY para exibição."""
+    try:
+        return datetime.strptime(data_str, '%Y-%m-%d').strftime('%d/%m/%Y')
+    except Exception:
+        return data_str or ''
+
+
 # ================= GERAÇÃO DE PDF =================
 
 def gerar_pdf_profissional(row):
@@ -477,7 +485,7 @@ def gerar_pdf_profissional(row):
         ['Inquilino/Locatário:', d.get('inquilino','')    or 'Não informado'],
         ['Corretor:',            d.get('corretor_responsavel','')],
         ['Tipo de Vistoria:',    d.get('tipo_vistoria','')],
-        ['Data / Hora:',         f"{d.get('data_vistoria','')}  às  {d.get('hora_vistoria','')}"],
+        ['Data / Hora:',         f"{formatar_data(d.get('data_vistoria',''))}  às  {d.get('hora_vistoria','')[:5]}"],
         ['Status:',              d.get('status','')],
     ]
     t = Table(info_data, colWidths=[2.1*inch, 4.4*inch])
@@ -826,7 +834,13 @@ def main():
                     end_r = str(r['endereco'])[:60] + "..." if len(str(r['endereco'])) > 60 else r['endereco']
                     ca, cb = st.columns([3, 1])
                     with ca:
-                        st.markdown(f"**ID {r['id']}** — {end_r}  \n🕐 {str(r['data_modificacao'])[:16]}")
+                        data_mod = str(r['data_modificacao'])[:16]
+                        # Converter "YYYY-MM-DD HH:MM" para "DD/MM/YYYY HH:MM"
+                        try:
+                            data_mod = datetime.strptime(data_mod, '%Y-%m-%d %H:%M').strftime('%d/%m/%Y %H:%M')
+                        except Exception:
+                            pass
+                        st.markdown(f"**ID {r['id']}** — {end_r}  \n🕐 {data_mod}")
                     with cb:
                         if st.button("▶️ Continuar", key=f"cont_{r['id']}"):
                             limpar_formulario()
@@ -924,7 +938,7 @@ def main():
                     "proprietario":      st.column_config.TextColumn("Proprietário",width="medium"),
                     "inquilino":         st.column_config.TextColumn("Inquilino",   width="medium"),
                     "tipo_vistoria":     st.column_config.TextColumn("Tipo",        width="small"),
-                    "data_vistoria":     st.column_config.DateColumn("Data",        width="small"),
+                    "data_vistoria":     st.column_config.DateColumn("Data", width="small", format="DD/MM/YYYY"),
                     "status":            st.column_config.TextColumn("Status",      width="medium"),
                 })
 
