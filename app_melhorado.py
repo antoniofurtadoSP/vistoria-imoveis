@@ -658,7 +658,7 @@ def renderizar_formulario():
         tvs   = ["Entrada","Saída","Periódica","Renovação"]
         tv_i  = tvs.index(s.f_tipo_vistoria) if s.f_tipo_vistoria in tvs else 0
         s.f_tipo_vistoria = st.selectbox("Tipo de Vistoria *", tvs, index=tv_i, key="w_tipov")
-    with c2: s.f_data_vistoria = st.date_input("Data *",  value=s.f_data_vistoria, key="w_data")
+    with c2: s.f_data_vistoria = st.date_input("Data *", value=s.f_data_vistoria, format="DD/MM/YYYY", key="w_data")
     with c3: s.f_hora_vistoria = st.time_input("Hora *",  value=s.f_hora_vistoria, key="w_hora")
     st.markdown('</div>', unsafe_allow_html=True)
 
